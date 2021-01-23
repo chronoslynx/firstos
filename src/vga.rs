@@ -1,3 +1,53 @@
+use core::fmt;
+use lazy_static::lazy_static;
+use spin::Mutex;
+use volatile::Volatile;
+
+#[macro_export]
+macro_rules! print {
+    ($($arg:tt)*) => ($crate::vga::_print(format_args!($($arg)*)));
+}
+
+#[macro_export]
+macro_rules! println {
+    () => ($crate::print!("\n"));
+    ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
+}
+
+#[doc(hidden)]
+pub fn _print(args: fmt::Arguments) {
+    use core::fmt::Write;
+    WRITER.lock().write_fmt(args).unwrap();
+}
+
+#[macro_export]
+macro_rules! eprint {
+    ($($arg:tt)*) => ($crate::vga::_eprint(format_args!($($arg)*)));
+}
+
+#[macro_export]
+macro_rules! eprintln {
+    () => ($crate::eprint!("\n"));
+    ($($arg:tt)*) => ($crate::eprint!("{}\n", format_args!($($arg)*)));
+}
+
+pub fn _eprint(args: fmt::Arguments) {
+    use core::fmt::Write;
+    let mut wr = WRITER.lock();
+    let orig_color = wr.color;
+    wr.color = ColorCode::new(Color::White, Color::Red);
+    wr.write_fmt(args).unwrap();
+    wr.color = orig_color;
+}
+
+lazy_static! {
+    pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
+        column_position: 0,
+        color: ColorCode::new(Color::Yellow, Color::Black),
+        buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
+    });
+}
+
 #[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(u8)]
@@ -25,7 +75,7 @@ pub enum Color {
 struct ColorCode(u8);
 
 impl ColorCode {
-    fn new(bg: Color, fg: Color) -> Self {
+    fn new(fg: Color, bg: Color) -> Self {
         Self((bg as u8) << 4 | (fg as u8))
     }
 }
@@ -42,7 +92,7 @@ const BUFFER_WIDTH: usize = 80;
 
 #[repr(transparent)]
 struct Buffer {
-    chars: [[Char; BUFFER_WIDTH]; BUFFER_HEIGHT],
+    chars: [[Volatile<Char>; BUFFER_WIDTH]; BUFFER_HEIGHT],
 }
 
 pub struct Writer {
@@ -52,6 +102,13 @@ pub struct Writer {
 }
 
 impl Writer {
+    pub fn new() -> Self {
+        Writer {
+            column_position: 0,
+            color: ColorCode::new(Color::Yellow, Color::Black),
+            buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
+        }
+    }
     pub fn write_byte(&mut self, byte: u8) {
         match byte {
             b'\n' => self.new_line(),
@@ -61,10 +118,10 @@ impl Writer {
                 }
                 let row = BUFFER_HEIGHT - 1;
                 let col = self.column_position;
-                self.buffer.chars[row][col] = Char {
+                self.buffer.chars[row][col].write(Char {
                     ascii: byte,
                     color: self.color,
-                };
+                });
                 self.column_position += 1;
             }
         }
@@ -81,6 +138,30 @@ impl Writer {
     }
 
     fn new_line(&mut self) {
-        // TODO
+        for row in 1..BUFFER_HEIGHT {
+            for col in 0..BUFFER_WIDTH {
+                let ch = self.buffer.chars[row][col].read();
+                self.buffer.chars[row - 1][col].write(ch);
+            }
+        }
+        self.clear_row(BUFFER_HEIGHT - 1);
+        self.column_position = 0;
+    }
+
+    fn clear_row(&mut self, row: usize) {
+        let blank = Char {
+            ascii: b' ',
+            color: self.color,
+        };
+        for col in 0..BUFFER_WIDTH {
+            self.buffer.chars[row][col].write(blank);
+        }
+    }
+}
+
+impl fmt::Write for Writer {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.write_string(s);
+        Ok(())
     }
 }
