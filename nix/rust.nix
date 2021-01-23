@@ -6,6 +6,8 @@ let
   channel = "nightly";
   date = "2021-01-22";
   targets = [ ];
-  extensions = [ "rust-src" "rust-analysis" ];
-  chan = pkgs.rustChannelOfTargets channel date targets;
+  chan = (pkgs.rustChannelOf { channel = channel; date = date; }).rust.override {
+    extensions = ["rust-src" "rust-analysis" "clippy-preview" "llvm-tools-preview"];
+  } ;
 in chan
+
