@@ -7,7 +7,7 @@ let
   date = "2021-01-22";
   targets = [ ];
   chan = (pkgs.rustChannelOf { channel = channel; date = date; }).rust.override {
-    extensions = ["rust-src" "rust-analysis" "clippy-preview" "llvm-tools-preview"];
+    extensions = ["rust-src" "llvm-tools-preview"];
   } ;
 in chan
 
