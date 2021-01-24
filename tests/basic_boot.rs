@@ -4,31 +4,22 @@
 #![test_runner(firstos::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
-use firstos::{eprint, println, qemu, serial_println};
-
 use core::panic::PanicInfo;
+use firstos::println;
 
-#[cfg(not(test))]
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    eprint!("{}", info);
-    loop {}
-}
-
-const MSG: &str = "We've ooted! Hooray!";
-
-#[no_mangle]
+#[no_mangle] // don't mangle the name of this function
 pub extern "C" fn _start() -> ! {
-    #[cfg(test)]
     test_main();
 
-    println!("{}", MSG);
-
     loop {}
 }
 
-#[cfg(test)]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     firstos::test_panic_handler(info)
+}
+
+#[test_case]
+fn test_println() {
+    println!("println should not panic");
 }

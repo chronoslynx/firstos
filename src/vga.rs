@@ -101,7 +101,7 @@ impl Into<u16> for Char {
 impl From<u16> for Char {
     fn from(u: u16) -> Self {
         Char {
-            ascii: (u & 0xFF00) as u8,
+            ascii: (u & 0x00FF) as u8,
             color: ColorCode((u >> 8) as u8),
         }
     }
@@ -191,5 +191,39 @@ impl fmt::Write for Writer {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         self.write_string(s);
         Ok(())
+    }
+}
+
+#[test_case]
+fn test_char_from_to_u16() {
+    let c = Char {
+        ascii: b'!',
+        color: ColorCode::new(Color::Red, Color::Blue),
+    };
+    let c16: u16 = c.into();
+    assert_eq!(c, Char::from(c16));
+}
+
+#[test_case]
+fn test_println() {
+    println!("println should not panic");
+}
+
+#[test_case]
+fn test_scrolling() {
+    for _ in 0..200 {
+        println!("test_scrolling output");
+    }
+}
+
+#[test_case]
+fn test_println_output() {
+    let s = "sentinel value";
+    println!("{}", s);
+    for (i, c) in s.chars().enumerate() {
+        let offset = ((BUFFER_HEIGHT - 2) * BUFFER_WIDTH) + i;
+        let s16 = unsafe { VGA_BUFFER.offset(offset as isize).read_volatile() };
+        let screen_char = Char::from(s16).ascii;
+        assert_eq!(char::from(screen_char), c);
     }
 }
