@@ -12,7 +12,8 @@ sources:
 tasks:
   - setup: |
       cd firstos
-      echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
+      mkdir -p ~/.config/nix/
+      echo "experimental-features = nix-command flakes" >> ~/.config/nix/nix.conf
       nix-env -iA nixpkgs.nixFlakes
       cachix use timods-ci
       cachix authtoken "$(cat ~/.cachix-key)"
