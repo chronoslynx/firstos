@@ -1,7 +1,7 @@
 image: nixos/unstable
 packages:
-  - nixpkgs.niv
-  - nixpkgs.qemu.out
+  - niv
+  - qemu.out
 sources:
   - https://git.sr.ht/~timods/firstos
 tasks:
