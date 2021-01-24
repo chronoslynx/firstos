@@ -11,7 +11,7 @@ fn panic(info: &PanicInfo) -> ! {
     loop {}
 }
 
-const MSG: &str = "We've booted!";
+const MSG: &str = "We've booted! Hooray!";
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {

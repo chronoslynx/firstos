@@ -1,7 +1,6 @@
 use core::fmt;
 use lazy_static::lazy_static;
 use spin::Mutex;
-use volatile::Volatile;
 
 #[macro_export]
 macro_rules! print {
@@ -44,7 +43,6 @@ lazy_static! {
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
         column_position: 0,
         color: ColorCode::new(Color::Yellow, Color::Black),
-        buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
     });
 }
 
@@ -80,6 +78,12 @@ impl ColorCode {
     }
 }
 
+impl Into<u8> for ColorCode {
+    fn into(self) -> u8 {
+        self.0
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(C)]
 struct Char {
@@ -87,18 +91,30 @@ struct Char {
     color: ColorCode,
 }
 
+impl Into<u16> for Char {
+    fn into(self) -> u16 {
+        let color: u8 = self.color.into();
+        ((color as u16) << 8) | (self.ascii as u16)
+    }
+}
+
+impl From<u16> for Char {
+    fn from(u: u16) -> Self {
+        Char {
+            ascii: (u & 0xFF00) as u8,
+            color: ColorCode((u >> 8) as u8),
+        }
+    }
+}
+
+const VGA_BUFFER: *mut u16 = 0xb8000 as *mut _;
+
 const BUFFER_HEIGHT: usize = 25;
 const BUFFER_WIDTH: usize = 80;
-
-#[repr(transparent)]
-struct Buffer {
-    chars: [[Volatile<Char>; BUFFER_WIDTH]; BUFFER_HEIGHT],
-}
 
 pub struct Writer {
     column_position: usize,
     color: ColorCode,
-    buffer: &'static mut Buffer,
 }
 
 impl Writer {
@@ -106,7 +122,6 @@ impl Writer {
         Writer {
             column_position: 0,
             color: ColorCode::new(Color::Yellow, Color::Black),
-            buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
         }
     }
     pub fn write_byte(&mut self, byte: u8) {
@@ -118,10 +133,14 @@ impl Writer {
                 }
                 let row = BUFFER_HEIGHT - 1;
                 let col = self.column_position;
-                self.buffer.chars[row][col].write(Char {
+                let offset = (row * BUFFER_WIDTH + col) as isize;
+                let ch = Char {
                     ascii: byte,
                     color: self.color,
-                });
+                };
+                unsafe {
+                    VGA_BUFFER.offset(offset).write_volatile(ch.into());
+                }
                 self.column_position += 1;
             }
         }
@@ -140,8 +159,13 @@ impl Writer {
     fn new_line(&mut self) {
         for row in 1..BUFFER_HEIGHT {
             for col in 0..BUFFER_WIDTH {
-                let ch = self.buffer.chars[row][col].read();
-                self.buffer.chars[row - 1][col].write(ch);
+                let offset = (row * BUFFER_WIDTH + col) as isize;
+                unsafe {
+                    let ch = VGA_BUFFER.offset(offset).read_volatile();
+                    VGA_BUFFER
+                        .offset(offset - BUFFER_WIDTH as isize)
+                        .write_volatile(ch);
+                }
             }
         }
         self.clear_row(BUFFER_HEIGHT - 1);
@@ -153,8 +177,12 @@ impl Writer {
             ascii: b' ',
             color: self.color,
         };
+        let row_offset = row * BUFFER_WIDTH;
         for col in 0..BUFFER_WIDTH {
-            self.buffer.chars[row][col].write(blank);
+            let offset = (row_offset + col) as isize;
+            unsafe {
+                VGA_BUFFER.offset(offset).write_volatile(blank.into());
+            }
         }
     }
 }
