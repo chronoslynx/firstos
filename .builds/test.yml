@@ -21,4 +21,4 @@ tasks:
           | cachix push timods-ci
   - test: |
       cd firstos
-      nix-shell --run cargo test shell.nix
+      nix-shell --run "cargo test" shell.nix
