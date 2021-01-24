@@ -12,13 +12,14 @@ sources:
 tasks:
   - setup: |
       cd firstos
+      echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
+      nix-env -iA nixpkgs.nixFlakes
       cachix use timods-ci
       cachix authtoken "$(cat ~/.cachix-key)"
-      nix-shell --run "echo OK"
-      nix-store --query --references $(nix-instantiate shell.nix) \
-          | xargs nix-store --realise \
-          | xargs nix-store --query --requisites \
-          | cachix push timods-ci
+      nix develop --command "echo OK"
+      nix flake archive --json \
+        | jq -r '.path,(.inputs|to_entries[].value.path)' \
+        | cachix push timods-ci
   - test: |
       cd firstos
-      nix-shell --run "cargo test" shell.nix
+      nix develop --command "cargo test"
