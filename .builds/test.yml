@@ -4,7 +4,6 @@ secrets:
 repositories:
   nixpkgs: https://nixos.org/channels/nixpkgs-unstable
 packages:
-  - nixpkgs.niv
   - nixpkgs.qemu.out
   - nixpkgs.cachix
 sources:
@@ -13,7 +12,7 @@ tasks:
   - setup: |
       cd firstos
       mkdir -p ~/.config/nix/
-      cat <<EOF > /etc/nixos/configuration.nix
+      sudo cat <<EOF > /etc/nixos/configuration.nix
         { pkgs, ... }: {
           nix = {
             package = pkgs.nixFlakes;
