@@ -1,0 +1,13 @@
+image: nixos/unstable
+packages:
+  - nixpkgs.niv
+  - nixpkgs.qemu.out
+sources:
+  - https://git.sr.ht/~timods/firstos
+tasks:
+  - setup: |
+      cd firstos
+      nix-store -r $(nix-instantiate shell.nix)
+  - test: |
+      cd firstos
+      nix-shell --run cargo test shell.nix
