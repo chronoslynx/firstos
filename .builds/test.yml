@@ -13,14 +13,23 @@ tasks:
   - setup: |
       cd firstos
       mkdir -p ~/.config/nix/
-      echo "experimental-features = nix-command flakes" >> ~/.config/nix/nix.conf
-      nix-env -iA nixpkgs.nixFlakes
+      cat <<EOF > /etc/nixos/configuration.nix
+        { pkgs, ... }: {
+          nix = {
+            package = pkgs.nixFlakes;
+            extraOptions = ''
+              experimental-features = nix-command flakes
+            '';
+            };
+        }
+      EOF
+      nixos-rebuild test
       cachix use timods-ci
       cachix authtoken "$(cat ~/.cachix-key)"
       nix develop --command "echo OK"
       nix flake archive --json \
-        | jq -r '.path,(.inputs|to_entries[].value.path)' \
-        | cachix push timods-ci
+      | jq -r '.path,(.inputs|to_entries[].value.path)' \
+      | cachix push timods-ci
   - test: |
       cd firstos
       nix develop --command "cargo test"
