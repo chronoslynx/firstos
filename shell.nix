@@ -12,5 +12,4 @@ pkgs.mkShell {
     bootimage
   ];
 
-  #RUST_SRC_PATH="${rust.rust-src}/lib/rustlib/src/rust/src";
 }

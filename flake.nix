@@ -2,24 +2,21 @@
   inputs = {
     utils.url = "github:numtide/flake-utils";
     naersk.url = "github:nmattia/naersk";
-    mozillapkgs = {
-      url = "github:mozilla/nixpkgs-mozilla";
-      flake = false;
-    };
+    rust-overlay.url = "github:oxalica/rust-overlay";
   };
 
-  outputs = { self, nixpkgs, utils, naersk, mozillapkgs }:
+  outputs = { self, nixpkgs, utils, naersk, rust-overlay }:
     utils.lib.eachDefaultSystem (system: let
-      pkgs = nixpkgs.legacyPackages."${system}";
+      pkgs = import nixpkgs {
+          inherit system;
+          overlays = [
+            rust-overlay.overlay
+          ];
+        };
 
       # Get a specific rust version
-      mozilla = pkgs.callPackage (mozillapkgs + "/package-set.nix") {};
-      rust = (mozilla.rustChannelOf {
-        date = "2021-01-22"; # get the current date with `date -I`
-        channel = "nightly";
-        sha256 = "m0ys5hVDefiCLwM413yo835Kkve5+b49BMmrzg1yQEw=";
-      }).rust.override {
-        extensions = ["rust-src" "llvm-tools-preview" "rust-analysis"];
+      rust = pkgs.rust-bin.nightly."2021-01-22".rust.override {
+         extensions = [ "rust-src" "rust-analysis" "llvm-tools-preview" "clippy"];
       };
 
       bootimage = pkgs.callPackage ./nix/bootimage.nix {};

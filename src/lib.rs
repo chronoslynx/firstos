@@ -7,6 +7,7 @@
 pub mod qemu;
 pub mod serial;
 pub mod vga;
+pub mod structures;
 
 use core::panic::PanicInfo;
 
