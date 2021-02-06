@@ -43,6 +43,7 @@
       devShell = pkgs.mkShell {
         # supply the specific rust version
         nativeBuildInputs = [ rust bootimage ];
+        RUST_SRC_PATH = "${rust}/lib/rustlib/src/rust/src";
       };
     });
 }
