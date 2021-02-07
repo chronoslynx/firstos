@@ -4,7 +4,7 @@
 #![test_runner(firstos::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
-use firstos::{self, eprint, println, qemu, serial_println};
+use firstos::{self, eprint, println};
 
 use core::panic::PanicInfo;
 
@@ -20,12 +20,16 @@ const MSG: &str = "We've booted! Hooray!";
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     firstos::init();
-    // invoke a breakpoint exception
-    x86_64::instructions::interrupts::int3(); // new
     
     #[cfg(test)]
     test_main();
 
+    fn stack_overflow() {
+        stack_overflow(); // for each recursion, the return address is pushed
+    }
+
+    // trigger a stack overflow
+    stack_overflow();
     println!("{}", MSG);
 
     loop {}
