@@ -16,7 +16,10 @@ macro_rules! println {
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;
-    WRITER.lock().write_fmt(args).unwrap();
+    use x86_64::instructions::interrupts;
+    interrupts::without_interrupts(|| {
+        WRITER.lock().write_fmt(args).unwrap();
+    });
 }
 
 #[macro_export]
@@ -218,12 +221,17 @@ fn test_scrolling() {
 
 #[test_case]
 fn test_println_output() {
+     use core::fmt::Write;
+    use x86_64::instructions::interrupts;
     let s = "sentinel value";
-    println!("{}", s);
-    for (i, c) in s.chars().enumerate() {
-        let offset = ((BUFFER_HEIGHT - 2) * BUFFER_WIDTH) + i;
-        let s16 = unsafe { VGA_BUFFER.offset(offset as isize).read_volatile() };
-        let screen_char = Char::from(s16).ascii;
-        assert_eq!(char::from(screen_char), c);
-    }
+    interrupts::without_interrupts(|| {
+        let mut wr= WRITER.lock();
+        writeln!(wr, "\n{}", s).expect("writeln failed");
+        for (i, c) in s.chars().enumerate() {
+            let offset = ((BUFFER_HEIGHT - 2) * BUFFER_WIDTH) + i;
+            let s16 = unsafe { VGA_BUFFER.offset(offset as isize).read_volatile() };
+            let screen_char = Char::from(s16).ascii;
+            assert_eq!(char::from(screen_char), c);
+        }
+    });
 }

@@ -24,12 +24,6 @@ pub extern "C" fn _start() -> ! {
     #[cfg(test)]
     test_main();
 
-    fn stack_overflow() {
-        stack_overflow(); // for each recursion, the return address is pushed
-    }
-
-    // trigger a stack overflow
-    stack_overflow();
     println!("{}", MSG);
 
     loop {}

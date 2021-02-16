@@ -13,9 +13,13 @@ pub mod gdt;
 
 use core::panic::PanicInfo;
 
+use x86_64::instructions;
+
 pub fn init() {
     gdt::init();
     interrupts::init_idt();
+    unsafe { interrupts::PICS.lock().initialize() };
+    instructions::interrupts::enable();
 }
 
 pub trait Testable {
