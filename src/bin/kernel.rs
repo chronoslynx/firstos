@@ -12,7 +12,7 @@ use core::panic::PanicInfo;
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     eprint!("{}", info);
-    loop {}
+    firstos::hlt_loop();
 }
 
 const MSG: &str = "We've booted! Hooray!";
@@ -26,7 +26,7 @@ pub extern "C" fn _start() -> ! {
 
     println!("{}", MSG);
 
-    loop {}
+    firstos::hlt_loop();
 }
 
 #[cfg(test)]
