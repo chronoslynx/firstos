@@ -4,13 +4,17 @@
 #![feature(abi_x86_interrupt)]
 #![test_runner(crate::test_runner)]
 #![reexport_test_harness_main = "test_main"]
+#![feature(alloc_error_handler)]
 
+pub mod allocator;
+pub mod gdt;
+pub mod interrupts;
+pub mod memory;
 pub mod qemu;
 pub mod serial;
 pub mod vga;
-pub mod interrupts;
-pub mod gdt;
-pub mod memory;
+
+extern crate alloc;
 
 use core::panic::PanicInfo;
 
@@ -75,4 +79,9 @@ fn test_kernel_main(_boot_info: &'static bootloader::BootInfo) -> ! {
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     test_panic_handler(info)
+}
+
+#[alloc_error_handler]
+fn alloc_error_handler(layout: alloc::alloc::Layout) -> ! {
+    panic!("allocation failed: {:?}", layout)
 }
