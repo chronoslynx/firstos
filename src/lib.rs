@@ -10,6 +10,7 @@ pub mod serial;
 pub mod vga;
 pub mod interrupts;
 pub mod gdt;
+pub mod memory;
 
 use core::panic::PanicInfo;
 
@@ -58,10 +59,13 @@ pub fn test_panic_handler(info: &PanicInfo) -> ! {
     qemu::exit(qemu::ExitCode::Failure);
     hlt_loop();
 }
+
+#[cfg(test)]
+bootloader::entry_point!(test_kernel_main);
+
 /// Entry point for `cargo test`
 #[cfg(test)]
-#[no_mangle]
-pub extern "C" fn _start() -> ! {
+fn test_kernel_main(_boot_info: &'static bootloader::BootInfo) -> ! {
     init();
     test_main();
     hlt_loop();
