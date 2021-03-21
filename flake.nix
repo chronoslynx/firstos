@@ -15,7 +15,7 @@
         };
 
       # Get a specific rust version
-      rust = pkgs.rust-bin.nightly."2021-01-22".rust.override {
+      rust = pkgs.rust-bin.nightly."2021-03-19".rust.override {
          extensions = [ "rust-src" "rust-analysis" "llvm-tools-preview" "clippy"];
       };
 
