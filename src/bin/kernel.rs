@@ -31,7 +31,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     let mut mapper = unsafe { memory::init(phys_mem_offset) };
     let mut frame_allocator =
         unsafe { memory::BootInfoFrameAllocator::init(&boot_info.memory_map) };
-    allocator::init_heap(&mut mapper, &mut frame_allocator).expect("heap initialization failed");
+    allocator::init(&mut mapper, &mut frame_allocator).expect("heap initialization failed");
 
     // allocate a number on the heap
     let heap_value = Box::new(41);
