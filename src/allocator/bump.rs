@@ -50,10 +50,15 @@ unsafe impl GlobalAlloc for Locked<BumpAllocator> {
             alloc_start as *mut u8
         }
     }
-    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         let mut bump = self.lock();
         bump.allocations -= 1;
-        if bump.allocations == 0 {
+        let alloc_start = ptr as usize;
+        if bump.next == alloc_start {
+            // If this was the last allocation we can reuse it immediately
+            bump.next = bump.next + layout.size();
+        } else if bump.allocations == 0 {
             bump.next = bump.heap_end;
         }
     }

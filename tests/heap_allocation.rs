@@ -60,3 +60,15 @@ fn test_many_boxes() {
         assert_eq!(*x, i);
     }
 }
+
+#[test_case]
+fn many_boxes_long_lived() {
+    use alloc::boxed::Box;
+    use firstos::allocator::HEAP_SIZE;
+    let long_lived = Box::new(1); // new
+    for i in 0..HEAP_SIZE {
+        let x = Box::new(i);
+        assert_eq!(*x, i);
+    }
+    assert_eq!(*long_lived, 1); // new
+}
