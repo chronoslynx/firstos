@@ -29,23 +29,23 @@ impl BumpAllocator {
     pub unsafe fn init(&mut self, heap_start: usize, heap_size: usize) {
         self.heap_start = heap_start;
         self.heap_end = heap_start + heap_size;
-        self.next = heap_start
+        self.next = self.heap_end;
     }
 }
 
 unsafe impl GlobalAlloc for Locked<BumpAllocator> {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let mut bump = self.lock();
-
-        let alloc_start = align_up(bump.next, layout.align());
-        let alloc_end = match alloc_start.checked_add(layout.size()) {
-            Some(n) => n,
+        let new_ptr = match bump.next.checked_sub(layout.size()) {
+            Some(start) => start,
             None => return ptr::null_mut(),
         };
-        if alloc_end > bump.heap_end {
+        // Round down to the next alignment
+        let alloc_start = new_ptr & !(layout.align() - 1);
+        if alloc_start < bump.heap_start {
             ptr::null_mut()
         } else {
-            bump.next = alloc_end;
+            bump.next = alloc_start;
             bump.allocations += 1;
             alloc_start as *mut u8
         }
@@ -54,7 +54,7 @@ unsafe impl GlobalAlloc for Locked<BumpAllocator> {
         let mut bump = self.lock();
         bump.allocations -= 1;
         if bump.allocations == 0 {
-            bump.next = bump.heap_start
+            bump.next = bump.heap_end;
         }
     }
 }

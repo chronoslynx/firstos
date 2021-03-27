@@ -19,13 +19,11 @@ pub const HEAP_SIZE: usize = 100 * 1024; // 100 KiB
 static ALLOCATOR: Locked<BumpAllocator> = Locked::new(BumpAllocator::empty());
 
 /// Align the given address `addr` upwards to alignment `align`.
+///
+/// Requires that `align` is a power of two, which is guaranteed
+/// by the `GlobalAlloc` trait.
 fn align_up(addr: usize, align: usize) -> usize {
-    let remainder = addr % align;
-    if remainder == 0 {
-        addr // addr already aligned
-    } else {
-        addr - remainder + align
-    }
+    (addr + align - 1) & !(align - 1)
 }
 
 pub fn init(
