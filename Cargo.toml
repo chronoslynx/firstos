@@ -7,6 +7,12 @@ edition = "2018"
 [[bin]]
 name = "kernel"
 
+[features]
+default = ["heap_fixed_block"]
+heap_fixed_block = []
+heap_linked_list = []
+heap_bump = []
+
 [package.metadata.bootimage]
 test-args = [
           "-device", "isa-debug-exit,iobase=0xf4,iosize=0x04", "-serial", "stdio",

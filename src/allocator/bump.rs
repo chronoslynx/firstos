@@ -11,6 +11,7 @@ pub struct Allocator {
 
 impl Allocator {
     /// Create a new empty bump allocator
+    #[allow(dead_code)]
     pub const fn empty() -> Self {
         Allocator {
             heap_start: 0,
@@ -25,6 +26,7 @@ impl Allocator {
     /// # Safety
     ///
     /// The caller must ensure that the given memory range is unused.
+    #[allow(dead_code)]
     pub unsafe fn init(&mut self, heap_start: usize, heap_size: usize) {
         self.heap_start = heap_start;
         self.heap_end = heap_start + heap_size;

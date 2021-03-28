@@ -24,12 +24,22 @@ impl Node {
     }
 }
 
+#[derive(Debug)]
+pub enum AllocError {
+    OOM,
+    TooSmall,
+    Overflow,
+}
+
+type Result<T> = core::result::Result<T, AllocError>;
+
 pub struct Allocator {
     head: Node,
 }
 
 impl Allocator {
     /// Create a new empty bump allocator
+    #[allow(dead_code)]
     pub const fn empty() -> Self {
         Self { head: Node::new(0) }
     }
@@ -39,6 +49,7 @@ impl Allocator {
     /// # Safety
     ///
     /// The caller must ensure that the given memory range is unused.
+    #[allow(dead_code)]
     pub unsafe fn init(&mut self, heap_start: usize, heap_size: usize) {
         self.add_free_region(heap_start, heap_size)
     }
@@ -104,7 +115,7 @@ impl Allocator {
     /// Find a free region with the given size and alignment and remove it from our free list.
     ///
     /// Returns the list node and the start address of the allocation.
-    fn find_region(&mut self, size: usize, align: usize) -> Result<(&'static mut Node, usize), ()> {
+    fn find_region(&mut self, size: usize, align: usize) -> Result<(&'static mut Node, usize)> {
         let mut current = &mut self.head;
         while let Some(ref mut region) = current.next {
             if let Ok(alloc_start) = Self::alloc_from_region(&region, size, align) {
@@ -118,22 +129,21 @@ impl Allocator {
             }
         }
         // No suitable region found
-        Err(())
+        Err(AllocError::OOM)
     }
 
-    fn alloc_from_region(region: &Node, size: usize, align: usize) -> Result<usize, ()> {
+    fn alloc_from_region(region: &Node, size: usize, align: usize) -> Result<usize> {
         let alloc_start = align_up(region.start_addr(), align);
-        let alloc_end = alloc_start.checked_add(size).ok_or(())?;
+        let alloc_end = alloc_start.checked_add(size).ok_or(AllocError::Overflow)?;
 
         if alloc_end > region.end_addr() {
             // region too small
-            return Err(());
+            return Err(AllocError::TooSmall);
         }
         let excess_size = region.end_addr() - alloc_end;
         if excess_size > 0 && excess_size < mem::size_of::<Node>() {
             // Region is too small for this allocation plus a new unused node
-            // TODO: could do slab/bump allocation within each region to better use memory
-            return Err(());
+            return Err(AllocError::TooSmall);
         }
         Ok(alloc_start)
     }
@@ -151,7 +161,7 @@ impl Allocator {
         (size, layout.align())
     }
 
-    pub unsafe fn alloc_first_fit(&mut self, layout: Layout) -> Result<NonNull<u8>, ()> {
+    pub unsafe fn alloc_first_fit(&mut self, layout: Layout) -> Result<NonNull<u8>> {
         let (size, align) = Allocator::size_align(layout);
         let (region, alloc_start) = self.find_region(size, align)?;
         let alloc_end = alloc_start.checked_add(size).expect("alloc overflow");

@@ -3,7 +3,6 @@ mod fixed_size_block;
 mod linked_list;
 mod locked;
 
-use core::ptr::null_mut;
 use locked::Locked;
 use x86_64::{
     structures::paging::{
@@ -15,11 +14,18 @@ use x86_64::{
 pub const HEAP_START: usize = 0x_4444_4444_0000;
 pub const HEAP_SIZE: usize = 100 * 1024; // 100 KiB
 
+#[cfg(feature = "heap_fixed_block")]
 #[global_allocator]
 static ALLOCATOR: Locked<fixed_size_block::Allocator> =
     Locked::new(fixed_size_block::Allocator::empty());
-//static ALLOCATOR: Locked<linked_list::Allocator> = Locked::new(linked_list::Allocator::empty());
-//static ALLOCATOR: Locked<bump::Allocator> = Locked::new(bump::Allocator::empty());
+
+#[cfg(feature = "heap_linked_list")]
+#[global_allocator]
+static ALLOCATOR: Locked<linked_list::Allocator> = Locked::new(linked_list::Allocator::empty());
+
+#[cfg(feature = "heap_bump")]
+#[global_allocator]
+static ALLOCATOR: Locked<bump::Allocator> = Locked::new(bump::Allocator::empty());
 
 /// Align the given address `addr` upwards to alignment `align`.
 ///
