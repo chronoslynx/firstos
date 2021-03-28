@@ -47,16 +47,19 @@ impl Allocator {
     ///
     /// This region will be merged with another if its `start_addr` is another region's
     /// `end_addr` or if its end_addr is another region's `start_addr`.
+    ///
+    /// # Safety
+    ///
+    /// This method is unsafe as it creates a new `Node` at the specified address.
+    /// This may cause undefined behavior if `addr` is invalid or this memory is in use elsewhere.
     unsafe fn add_free_region(&mut self, addr: usize, size: usize) {
-        use crate::serial_println;
         // Ensure that the free region is large enough to hold a region header
         assert_eq!(align_up(addr, mem::align_of::<Node>()), addr);
         assert!(size >= mem::size_of::<Node>());
 
         // append the new node to the start of our free list
-        let node = Node::new(size);
         let node_ptr = addr as *mut Node;
-        node_ptr.write(node);
+        node_ptr.write(Node::new(size));
         let node = &mut *node_ptr;
 
         let our_start = node.start_addr();
@@ -66,26 +69,11 @@ impl Allocator {
         while let Some(ref mut region) = current.next {
             let region_start = region.start_addr();
             let region_end = region.end_addr();
-            if region_start == our_end {
-                // append this region to ourselves
-                node.size += region.size;
-                let mut tail = region.next.take();
-                if let Some(ref mut n) = tail {
-                    if n.start_addr() == node.end_addr() {
-                        // merge once more
-                        node.next = n.next.take();
-                        node.size += n.size;
-                    } else {
-                        node.next = tail;
-                    }
-                }
-                // Repair the list
-                current.next = Some(node);
-                return;
-            } else if region_end == our_start {
+            if region_end == our_start {
                 // append ourselves to this region
                 region.size += node.size;
-                // See if we can collapse this region with its tail now
+
+                // See if we can append `region.next` now that we've extended `region`
                 let mut tail = region.next.take();
                 if let Some(ref mut n) = tail {
                     if n.start_addr() == region.end_addr() {
@@ -96,6 +84,12 @@ impl Allocator {
                         region.next = tail;
                     }
                 }
+                return;
+            } else if region_start == our_end {
+                // append this region to ourselves
+                node.size += region.size;
+                // Repair the list
+                current.next = Some(node);
                 return;
             } else if region_start > our_start {
                 // insert here
