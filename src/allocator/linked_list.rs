@@ -199,12 +199,10 @@ fn test_linked_list_stays_sorted_trivial() {
     use crate::serial_println;
     let heap: [u8; 512] = [0; 512];
     let alloc = Locked::new(Allocator::empty());
-    serial_println!("alloc created");
     let l1 = Layout::from_size_align(2, 1).expect("invalid layout");
     unsafe {
         let heap_addr = ptr::addr_of!(heap) as usize;
         alloc.lock().init(heap_addr, heap.len());
-        serial_println!("allocator initialized");
     }
     unsafe {
         let p1 = alloc.alloc(l1);

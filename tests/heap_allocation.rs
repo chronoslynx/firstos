@@ -12,14 +12,14 @@ entry_point!(main);
 
 fn main(boot_info: &'static BootInfo) -> ! {
     use firstos::allocator;
-    use firstos::memory::{self, BootInfoFrameAllocator};
+    use firstos::memory::{self, ListFrameAllocator};
     use x86_64::VirtAddr;
 
     firstos::init();
 
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
     let mut mapper = unsafe { memory::init(phys_mem_offset) };
-    let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
+    let mut frame_allocator = unsafe { ListFrameAllocator::init(&boot_info) };
     allocator::init(&mut mapper, &mut frame_allocator).expect("heap initialization failed");
 
     test_main();
