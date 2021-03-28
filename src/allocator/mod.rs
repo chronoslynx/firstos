@@ -1,8 +1,8 @@
 pub mod bump;
+pub mod linked_list;
 pub mod locked;
 
 use alloc::alloc::{GlobalAlloc, Layout};
-use bump::BumpAllocator;
 use core::ptr::null_mut;
 use locked::Locked;
 use x86_64::{
@@ -16,7 +16,8 @@ pub const HEAP_START: usize = 0x_4444_4444_0000;
 pub const HEAP_SIZE: usize = 100 * 1024; // 100 KiB
 
 #[global_allocator]
-static ALLOCATOR: Locked<BumpAllocator> = Locked::new(BumpAllocator::empty());
+static ALLOCATOR: Locked<linked_list::Allocator> = Locked::new(linked_list::Allocator::empty());
+//static ALLOCATOR: Locked<bump::Allocator> = Locked::new(bump::Allocator::empty());
 
 /// Align the given address `addr` upwards to alignment `align`.
 ///
