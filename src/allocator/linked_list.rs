@@ -2,7 +2,7 @@ use super::align_up;
 use super::locked::Locked;
 use alloc::alloc::{GlobalAlloc, Layout};
 use core::mem;
-use core::ptr;
+use core::ptr::{self, NonNull};
 
 struct Node {
     size: usize,
@@ -104,12 +104,12 @@ impl Allocator {
     /// Find a free region with the given size and alignment and remove it from our free list.
     ///
     /// Returns the list node and the start address of the allocation.
-    fn find_region(&mut self, size: usize, align: usize) -> Option<(&'static mut Node, usize)> {
+    fn find_region(&mut self, size: usize, align: usize) -> Result<(&'static mut Node, usize), ()> {
         let mut current = &mut self.head;
         while let Some(ref mut region) = current.next {
             if let Ok(alloc_start) = Self::alloc_from_region(&region, size, align) {
                 let next = region.next.take();
-                let ret = Some((current.next.take().unwrap(), alloc_start));
+                let ret = Ok((current.next.take().unwrap(), alloc_start));
                 current.next = next;
                 return ret;
             } else {
@@ -117,7 +117,8 @@ impl Allocator {
                 current = current.next.as_mut().unwrap();
             }
         }
-        None
+        // No suitable region found
+        Err(())
     }
 
     fn alloc_from_region(region: &Node, size: usize, align: usize) -> Result<usize, ()> {
@@ -140,6 +141,7 @@ impl Allocator {
     /// Adjust the given layout such that any allocated memory region is capable of storing a `Node`.
     ///
     /// Returns the adjusted (size, alignment)
+    #[inline]
     fn size_align(layout: Layout) -> (usize, usize) {
         let layout = layout
             .align_to(mem::align_of::<Node>())
@@ -148,29 +150,37 @@ impl Allocator {
         let size = layout.size().max(mem::size_of::<Node>());
         (size, layout.align())
     }
+
+    pub unsafe fn alloc_first_fit(&mut self, layout: Layout) -> Result<NonNull<u8>, ()> {
+        let (size, align) = Allocator::size_align(layout);
+        let (region, alloc_start) = self.find_region(size, align)?;
+        let alloc_end = alloc_start.checked_add(size).expect("alloc overflow");
+        let excess_size = region.end_addr() - alloc_end;
+        if excess_size > 0 {
+            // hello fragmentation
+            self.add_free_region(alloc_end, excess_size);
+        }
+        Ok(NonNull::new_unchecked(alloc_start as *mut u8))
+    }
+
+    pub unsafe fn deallocate(&mut self, ptr: NonNull<u8>, layout: Layout) {
+        let (adjusted_size, _) = Allocator::size_align(layout);
+        self.add_free_region(ptr.as_ptr() as usize, adjusted_size)
+    }
 }
 
 unsafe impl GlobalAlloc for Locked<Allocator> {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let (size, align) = Allocator::size_align(layout);
         let mut ll = self.lock();
-
-        if let Some((region, alloc_start)) = ll.find_region(size, align) {
-            let alloc_end = alloc_start.checked_add(size).expect("alloc overflow");
-            let excess_size = region.end_addr() - alloc_end;
-            if excess_size > 0 {
-                // hello fragmentation
-                ll.add_free_region(alloc_end, excess_size);
-            }
-            alloc_start as *mut u8
-        } else {
-            ptr::null_mut()
+        match ll.alloc_first_fit(layout) {
+            Ok(p) => p.as_ptr(),
+            Err(_) => ptr::null_mut(),
         }
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        let (adjusted_size, _) = Allocator::size_align(layout);
-        self.lock().add_free_region(ptr as usize, adjusted_size);
+        let ptr = NonNull::new(ptr).unwrap();
+        self.lock().deallocate(ptr, layout)
     }
 }
 

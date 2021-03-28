@@ -1,6 +1,7 @@
-pub mod bump;
-pub mod linked_list;
-pub mod locked;
+mod bump;
+mod fixed_size_block;
+mod linked_list;
+mod locked;
 
 use core::ptr::null_mut;
 use locked::Locked;
@@ -15,13 +16,16 @@ pub const HEAP_START: usize = 0x_4444_4444_0000;
 pub const HEAP_SIZE: usize = 100 * 1024; // 100 KiB
 
 #[global_allocator]
-static ALLOCATOR: Locked<linked_list::Allocator> = Locked::new(linked_list::Allocator::empty());
+static ALLOCATOR: Locked<fixed_size_block::Allocator> =
+    Locked::new(fixed_size_block::Allocator::empty());
+//static ALLOCATOR: Locked<linked_list::Allocator> = Locked::new(linked_list::Allocator::empty());
 //static ALLOCATOR: Locked<bump::Allocator> = Locked::new(bump::Allocator::empty());
 
 /// Align the given address `addr` upwards to alignment `align`.
 ///
 /// Requires that `align` is a power of two, which is guaranteed
 /// by the `GlobalAlloc` trait.
+#[inline(always)]
 fn align_up(addr: usize, align: usize) -> usize {
     (addr + align - 1) & !(align - 1)
 }
